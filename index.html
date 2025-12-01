@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klasifikasi Daun & Kelayakan Tinta</title>
+    <!-- Memuat Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Font kustom */
+        body { 
+            font-family: 'Inter', sans-serif;
+            background-color: #DAFFBC; 
+            position: relative;
+        }
+        h1, h2 { font-family: 'Playfair Display', serif; }
+
+        /* Warna kustom (Pastel Green & Muted Brown) */
+        .bg-leaf-primary { background-color: #A2D19C; } /* Soft Sage Pastel */
+        .bg-leaf-secondary { background-color: #C8E6C9; } /* Pale Mint Pastel */
+        .bg-leaf-tertiary { background-color: #E1F2E2; } /* Very Pale Green */
+        .text-leaf-primary { color: #588157; }
+        .text-leaf-dark { color: #3A5A40; } /* Darker tone for title */
+        .border-leaf-accent { border-color: #C8E6C9; }
+        
+        /* MUTED WOOD/BROWN */
+        .bg-wood-dark { background-color: #997A6F; }
+        .bg-wood-light { background-color: #DBC5B0; }
+        .text-wood-dark { color: #6C3D2F; }
+
+        /* Style untuk video dan canvas agar responsive dan terbalik seperti cermin */
+        #videoElement {
+            transform: scaleX(-1); /* Membalik horizontal untuk kamera */
+        }
+        #videoElement, #canvas {
+            width: 100%;
+            height: auto;
+            max-height: 450px;
+            object-fit: cover;
+            border-radius: 1rem; /* Tambahkan border-radius yang sesuai dengan container */
+        }
+        /* Canvas tidak perlu dibalik jika menampilkan gambar yang diunggah */
+        .uploaded-image-mode #canvas {
+            transform: none; 
+        }
+
+        /* Animasi berkedip untuk area sampel */
+        @keyframes pulse-border {
+            0% { border-color: rgba(251, 191, 36, 0.5); transform: scale(1); }
+            50% { border-color: rgba(251, 191, 36, 1); transform: scale(1.02); }
+            100% { border-color: rgba(251, 191, 36, 0.5); transform: scale(1); }
+        }
+        .animate-pulse-border {
+            animation: pulse-border 2s infinite ease-in-out;
+        }
+
+        /* Teks Hijau Tua dan Bold untuk Judul Tabel */
+        .table-header-style th {
+            text-shadow: none; 
+            color: var(--text-leaf-dark, #3A5A40); 
+            font-weight: 700;
+        }
+
+        /* Kontainer latar belakang (dots) */
+        @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0.8; } 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.8; } }
+        .dot-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+        .dot { position: absolute; border-radius: 50%; opacity: 0.8; filter: blur(1px); animation-name: float; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
+        .dot-1 { background-color: #A2D19C; } .dot-2 { background-color: #C8E6C9; } .dot-3 { background-color: #E1F2E2; }
+        
+        .reference-table { min-width: 768px; width: 100%; }
+        
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8 text-gray-800">
+
+    <!-- Kontainer Polka Dots -->
+    <div class="dot-container">
+        <!-- Dots... (Sama seperti sebelumnya) -->
+        <div class="dot dot-1" style="width: 100px; height: 100px; top: 10%; left: 5%; animation-duration: 12s; animation-delay: 0s;"></div>
+        <div class="dot dot-2" style="width: 70px; height: 70px; top: 70%; right: 10%; animation-duration: 16s; animation-delay: 4s;"></div>
+        <div class="dot dot-3" style="width: 40px; height: 40px; top: 40%; left: 80%; animation-duration: 9s; animation-delay: 2s;"></div>
+        <div class="dot dot-1" style="width: 50px; height: 50px; bottom: 5%; left: 50%; animation-duration: 14s; animation-delay: 6s;"></div>
+        <div class="dot dot-3" style="width: 120px; height: 120px; top: 0%; left: 30%; animation-duration: 18s; animation-delay: 8s;"></div>
+        <div class="dot dot-2" style="width: 60px; height: 60px; bottom: 30%; left: 20%; animation-duration: 11s; animation-delay: 1s;"></div>
+        <div class="dot dot-1" style="width: 30px; height: 30px; top: 25%; right: 25%; animation-duration: 13s; animation-delay: 5s;"></div>
+        <div class="dot dot-2" style="width: 90px; height: 90px; bottom: 15%; right: 40%; animation-duration: 17s; animation-delay: 3s;"></div>
+        <div class="dot dot-3" style="width: 35px; height: 35px; top: 55%; left: 15%; animation-duration: 10s; animation-delay: 7s;"></div>
+    </div>
+    <!-- AKHIR Kontainer Polka Dots -->
+
+    <div class="max-w-4xl mx-auto bg-white bg-opacity-30 shadow-3xl rounded-3xl p-6 md:p-12 backdrop-blur-sm">
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-extrabold text-leaf-dark mb-3 leading-tight">
+                🍃 Klasifikasi Daun & Kelayakan Tinta
+            </h1>
+            <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                Identifikasi kondisi daun secara real-time dari kamera atau gambar yang diunggah.
+            </p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            <!-- Container Kamera, Canvas, dan Kontrol -->
+            <div class="space-y-4">
+                <!-- Area Kamera / Canvas -->
+                <section id="cameraContainer" class="relative bg-wood-dark rounded-2xl shadow-xl overflow-hidden aspect-video">
+                    
+                    <!-- Loader -->
+                    <div class="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70 rounded-2xl z-10" id="loader">
+                        <div class="text-white text-xl font-semibold flex flex-col items-center p-6 bg-black bg-opacity-60 rounded-xl shadow-lg">
+                            <svg class="animate-spin h-8 w-8 text-leaf-tertiary mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <p id="loaderText">Memuat Kamera...</p>
+                        </div>
+                    </div>
+
+                    <!-- Elemen video tersembunyi untuk input kamera --><video id="videoElement" autoplay playsinline class="absolute inset-0 w-full h-full object-cover hidden"></video>
+                    <!-- Canvas untuk menampilkan video/gambar, area sampling, dan teks hasil --><canvas id="canvas" class="absolute inset-0 w-full h-full object-cover"></canvas>
+
+                    <!-- Overlay Petunjuk Sampling -->
+                    <div id="sample-area-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                        <div class="w-1/3 h-1/3 border-4 border-yellow-400 rounded-xl shadow-2xl animate-pulse-border flex items-center justify-center bg-yellow-400 bg-opacity-10 backdrop-blur-sm">
+                            <span class="text-white text-base sm:text-lg font-bold p-2 rounded-full bg-black bg-opacity-50 tracking-wide">AREA SAMPEL</span>
+                        </div>
+                    </div>
+
+                    <!-- KETERANGAN KONDISI DAUN DI KIRI ATAS KAMERA -->
+                    <div id="result-overlay" class="absolute top-3 left-3 z-30 p-2 rounded-lg bg-black bg-opacity-50 text-white shadow-xl max-w-[45%] text-xs sm:text-sm" style="display: none;">
+                        <span class="font-bold">Kondisi:</span> <span id="overlayKondisi">Menunggu...</span>
+                    </div>
+                </section>
+                
+                <!-- Kontrol Mode dan Kamera -->
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <!-- Tombol Ganti Kamera -->
+                    <button id="switchCameraButton" disabled
+                        class="flex-1 py-3 px-4 rounded-xl bg-leaf-primary text-white font-semibold transition duration-300 hover:bg-leaf-dark focus:outline-none focus:ring-4 focus:ring-leaf-primary focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        Mencari Perangkat Kamera...
+                    </button>
+                    
+                    <!-- Tombol dan Input Unggah Gambar -->
+                    <label for="imageUpload" id="uploadLabel"
+                        class="flex-1 py-3 px-4 rounded-xl bg-wood-dark text-white text-center font-semibold transition duration-300 hover:bg-wood-dark/70 focus:outline-none focus:ring-4 focus:ring-wood-dark focus:ring-opacity-50 cursor-pointer">
+                        Unggah Gambar Daun
+                    </label>
+                    <input type="file" id="imageUpload" accept="image/*" class="hidden">
+                    
+                    <!-- Tombol Kembali ke Kamera (Hidden by default) -->
+                    <button id="resetButton" style="display:none;"
+                        class="flex-1 py-3 px-4 rounded-xl bg-red-600 text-white font-semibold transition duration-300 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-600 focus:ring-opacity-50">
+                        Kembali ke Kamera
+                    </button>
+                </div>
+            </div>
+
+            <!-- Area Hasil Klasifikasi & Data -->
+            <section class="space-y-6">
+                
+                <!-- Kartu Rekomendasi Kelayakan Tinta -->
+                <div class="bg-wood-light text-wood-dark p-5 rounded-xl shadow-lg">
+                    <p class="font-bold text-lg mb-1">Rekomendasi Kelayakan Tinta:</p>
+                    <p id="rekomendasi" class="text-3xl font-extrabold tracking-tight">---</p>
+                </div>
+
+                <!-- Kartu Data Sampel (RGB | HSV) -->
+                <div class="bg-gray-50 p-5 rounded-xl shadow-md border border-leaf-accent">
+                    <p class="font-bold text-lg text-leaf-dark mb-2">Data Sampel (R, G, B | H, S, V):</p>
+                    <code id="sampleData" class="block bg-gray-100 p-3 rounded-lg text-sm text-gray-700 font-mono overflow-x-auto whitespace-nowrap">
+                        R: 0, G: 0, B: 0 | H: 0, S: 0, V: 0
+                    </code>
+                </div>
+                
+            </section>
+        </main>
+
+        <!-- Tabel Referensi -->
+        <section class="mt-16">
+            <h2 class="text-3xl font-bold text-leaf-dark mb-6 text-center">Tabel Referensi Klasifikasi (Daun Jati)</h2>
+            <div class="overflow-x-auto rounded-2xl shadow-2xl border-2 border-leaf-accent">
+                <table class="reference-table divide-y divide-gray-200">
+                    <thead class="bg-leaf-secondary table-header-style">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-bold uppercase tracking-wider">Kondisi Daun</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold uppercase tracking-wider">Rentang HSV (H: Hue, S: Saturation, V: Value)</th>
+                            <th class="px-4 py-3 text-left text-sm font-bold uppercase tracking-wider">Kelayakan Tinta</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100 text-gray-700">
+                        <tr class="hover:bg-leaf-tertiary transition-colors duration-200">
+                            <td class="px-4 py-3 text-base font-medium">Hijau Cerah (Sangat Sehat)</td>
+                            <td class="px-4 py-3 text-sm">H: 35-85, S: >80, V: >120</td>
+                            <td class="px-4 py-3 text-base font-semibold text-red-600">Kurang Direkomendasikan</td>
+                        </tr>
+                        <tr class="hover:bg-leaf-tertiary transition-colors duration-200">
+                            <td class="px-4 py-3 text-base font-medium">Hijau Tua (Sehat)</td>
+                            <td class="px-4 py-3 text-sm">H: 35-85, S: >40, V: ≤120</td>
+                            <td class="px-4 py-3 text-base font-semibold text-red-600">Kurang Direkomendasikan (kecuali diarangkan)</td>
+                        </tr>
+                        <tr class="hover:bg-leaf-tertiary transition-colors duration-200 bg-yellow-50">
+                            <td class="px-4 py-3 text-base font-medium">Kuning (Menua)</td>
+                            <td class="px-4 py-3 text-sm">H: 20-35</td>
+                            <td class="px-4 py-3 text-base font-semibold text-green-700">Direkomendasikan</td>
+                        </tr>
+                        <tr class="hover:bg-leaf-tertiary transition-colors duration-200 bg-yellow-100">
+                            <td class="px-4 py-3 text-base font-medium">Coklat / Kering</td>
+                            <td class="px-4 py-3 text-sm">H: 5-20, V: <200</td>
+                            <td class="px-4 py-3 text-base font-semibold text-green-700">Sangat Direkomendasikan</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Variabel DOM
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const overlayKondisiEl = document.getElementById('overlayKondisi');
+        const rekomendasiEl = document.getElementById('rekomendasi');
+        const sampleDataEl = document.getElementById('sampleData');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loaderText');
+        const sampleAreaOverlay = document.getElementById('sample-area-overlay');
+        const resultOverlay = document.getElementById('result-overlay');
+        const switchButton = document.getElementById('switchCameraButton');
+        const uploadInput = document.getElementById('imageUpload'); // Input file baru
+        const resetButton = document.getElementById('resetButton'); // Tombol reset/kembali baru
+        const cameraContainer = document.getElementById('cameraContainer');
+
+        // Variabel Kamera Global
+        let mediaStream = null;
+        let videoInputDevices = [];
+        let currentDeviceIndex = 0;
+        let animationFrameId = null; // Untuk mengontrol loop kamera
+        let currentMode = 'CAMERA'; // 'CAMERA' atau 'UPLOAD'
+        const SAMPLE_AREA_RATIO = 0.25;
+
+        // Fungsi untuk menghentikan loop animasi
+        function stopAnimationLoop() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        }
+
+        // Fungsi untuk menghentikan stream kamera yang sedang berjalan
+        function stopCameraStream() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+        }
+        
+        // Fungsi utilitas untuk konversi RGB ke HSV
+        function rgbToHsv(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            let max = Math.max(r, g, b);
+            let min = Math.min(r, g, b);
+            let h, s, v = max;
+            let d = max - min;
+            s = max === 0 ? 0 : d / max;
+            if (max === min) {
+                h = 0;
+            } else {
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return {
+                h: Math.round(h * 180),     // Hue (0-180)
+                s: Math.round(s * 255),     // Saturation (0-255)
+                v: Math.round(v * 255)      // Value (Brightness) (0-255)
+            };
+        }
+
+        // --- Logika Klasifikasi ---
+        function klasifikasiWarna(mean_hsv) {
+            const h = mean_hsv.h;
+            const s = mean_hsv.s;
+            const v = mean_hsv.v;
+
+            if (h >= 35 && h <= 85 && s > 80 && v > 120) {
+                return { warna: "Hijau Cerah (Sangat Sehat)", rekomendasi: "Kurang Direkomendasikan" };
+            }
+            if (h >= 35 && h <= 85 && s > 40 && v <= 120) {
+                return { warna: "Hijau Tua (Sehat)", rekomendasi: "Kurang Direkomendasikan (kecuali diarangkan)" };
+            }
+            if (h >= 20 && h < 35) {
+                return { warna: "Kuning (Menua)", rekomendasi: "Direkomendasikan" };
+            }
+            if (h >= 5 && h < 20 && v < 200) {
+                return { warna: "Coklat / Kering", rekomendasi: "Sangat Direkomendasikan" };
+            }
+            return { warna: "Tidak Terdeteksi", rekomendasi: "-" };
+        }
+        
+        // Fungsi untuk menjalankan analisis HSV pada frame/gambar saat ini
+        function runAnalysis() {
+            // Lebar dan tinggi yang sedang digunakan (bisa dari video atau gambar)
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Tentukan area sampling 
+            const sampleWidth = w * (SAMPLE_AREA_RATIO * 1.5);
+            const sampleHeight = h * (SAMPLE_AREA_RATIO * 1.5);
+            const xStart = (w - sampleWidth) / 2;
+            const yStart = (h - sampleHeight) / 2;
+
+            // Ambil data piksel dari area sampling
+            const imageData = ctx.getImageData(xStart, yStart, sampleWidth, sampleHeight);
+            const data = imageData.data;
+            const pixelCount = data.length / 4;
+
+            let sumR = 0, sumG = 0, sumB = 0;
+
+            // Hitung rata-rata RGB
+            for (let i = 0; i < data.length; i += 4) {
+                sumR += data[i];
+                sumG += data[i + 1];
+                sumB += data[i + 2];
+            }
+
+            const avgR = Math.round(sumR / pixelCount);
+            const avgG = Math.round(sumG / pixelCount);
+            const avgB = Math.round(sumB / pixelCount);
+
+            // Konversi RGB rata-rata ke HSV
+            const avgHsv = rgbToHsv(avgR, avgG, avgB);
+
+            // Jalankan Klasifikasi
+            const result = klasifikasiWarna(avgHsv);
+
+            // Update UI dengan hasil
+            overlayKondisiEl.textContent = result.warna;
+            rekomendasiEl.textContent = result.rekomendasi;
+            sampleDataEl.innerHTML = `
+                R: <span class="text-red-600">${avgR}</span>,
+                G: <span class="text-green-600">${avgG}</span>,
+                B: <span class="text-blue-600">${avgB}</span> |
+                H: <span class="text-purple-600">${avgHsv.h}</span>,
+                S: <span class="text-orange-600">${avgHsv.s}</span>,
+                V: <span class="text-gray-800">${avgHsv.v}</span>
+            `;
+
+            // Visualisasi (Garis panduan sampling)
+            ctx.strokeStyle = '#FBBF24';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(xStart, yStart, sampleWidth, sampleHeight);
+            
+            // Tampilkan kembali area sampling overlay untuk mode Unggah
+            if(currentMode === 'UPLOAD') {
+                 sampleAreaOverlay.classList.remove('hidden');
+            }
+        }
+        
+        // Fungsi utama untuk memproses setiap frame video (loop)
+        function processFrame() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA && currentMode === 'CAMERA') {
+                const w = canvas.width = video.videoWidth;
+                const h = canvas.height = video.videoHeight;
+
+                // Gambar frame video ke canvas (dibalik horizontal)
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, 0, 0, w * -1, h);
+                ctx.restore();
+
+                runAnalysis();
+            }
+            animationFrameId = requestAnimationFrame(processFrame);
+        }
+
+        // Fungsi untuk memulai kamera dengan deviceId spesifik
+        async function startCamera(deviceId = null) {
+            stopCameraStream(); 
+            stopAnimationLoop();
+            currentMode = 'CAMERA';
+            loaderText.textContent = 'Memuat Kamera...';
+            loader.classList.remove('hidden'); 
+            video.classList.remove('hidden');
+            canvas.classList.remove('uploaded-image-mode');
+            
+            // Sembunyikan tombol UPLOAD, tampilkan SWITCH
+            switchButton.style.display = 'block';
+            document.getElementById('uploadLabel').style.display = 'flex';
+            resetButton.style.display = 'none';
+
+            // Tampilkan overlay sampling
+            sampleAreaOverlay.classList.remove('hidden');
+
+            // Atur class untuk memastikan video dibalik
+            cameraContainer.classList.remove('uploaded-image-mode');
+            video.style.transform = 'scaleX(-1)';
+            canvas.style.transform = 'scaleX(-1)';
+
+            const constraints = {
+                video: deviceId ? { deviceId: { exact: deviceId } } : true
+            };
+
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = mediaStream;
+
+                video.onloadedmetadata = () => {
+                    video.play();
+                    loader.classList.add('hidden'); 
+                    resultOverlay.style.display = 'block';
+                    
+                    // Atur ukuran canvas agar sesuai dengan resolusi video
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+
+                    // Mulai loop pemrosesan frame
+                    processFrame(); 
+                };
+            } catch (err) {
+                console.error("Kesalahan mengakses kamera: ", err);
+                loader.innerHTML = `
+                    <div class="p-6 bg-red-700 rounded-xl shadow-xl text-center">
+                        <p class="text-white text-xl font-bold mb-2">Gagal Memuat Kamera!</p>
+                        <p class="text-base text-red-100">Pastikan Anda memberikan izin akses kamera atau coba mode Unggah Gambar.</p>
+                        <p class="text-xs text-red-200 mt-2">(${err.name}: ${err.message})</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Fungsi untuk mengganti kamera
+        function switchCamera() {
+            if (videoInputDevices.length <= 1) return;
+
+            // Pindah ke kamera berikutnya
+            currentDeviceIndex = (currentDeviceIndex + 1) % videoInputDevices.length;
+            const newDeviceId = videoInputDevices[currentDeviceIndex].deviceId;
+
+            // Perbarui teks tombol
+            switchButton.textContent = `Ganti Kamera (${currentDeviceIndex + 1}/${videoInputDevices.length})`;
+
+            // Mulai ulang stream dengan device ID baru
+            startCamera(newDeviceId);
+        }
+        
+        // Fungsi untuk mendeteksi perangkat kamera dan inisialisasi
+        async function setupCameraDevices() {
+            try {
+                // Minta izin terlebih dahulu (untuk memastikan enumerasi lengkap)
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                videoInputDevices = devices.filter(device => device.kind === 'videoinput');
+
+                if (videoInputDevices.length > 1) {
+                    switchButton.disabled = false;
+                    switchButton.textContent = `Ganti Kamera (1/${videoInputDevices.length})`;
+                    switchButton.addEventListener('click', switchCamera);
+                } else {
+                    switchButton.disabled = true;
+                    switchButton.textContent = "Hanya 1 Kamera Ditemukan";
+                }
+                
+                // Mulai dengan kamera pertama atau default
+                const initialDeviceId = videoInputDevices.length > 0 ? videoInputDevices[currentDeviceIndex].deviceId : null;
+                await startCamera(initialDeviceId);
+            } catch (err) {
+                console.error("Gagal mendeteksi perangkat kamera: ", err);
+                await startCamera(null); 
+            }
+        }
+        
+        // --- Logika Unggah Gambar (BARU) ---
+
+        // Fungsi untuk memproses gambar yang diunggah
+        function processImage(file) {
+            stopCameraStream();
+            stopAnimationLoop();
+            currentMode = 'UPLOAD';
+            
+            // Sembunyikan video dan tampilkan canvas saja.
+            video.classList.add('hidden');
+            loader.classList.remove('hidden');
+            loaderText.textContent = 'Memuat dan Menganalisis Gambar...';
+
+            // Ubah tampilan kontrol
+            switchButton.style.display = 'none';
+            document.getElementById('uploadLabel').style.display = 'none';
+            resetButton.style.display = 'flex';
+            
+            // Hapus efek cermin dari canvas
+            cameraContainer.classList.add('uploaded-image-mode');
+            canvas.style.transform = 'none';
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Atur canvas agar sesuai dengan rasio aspek kontainer, sambil mempertahankan rasio aspek gambar
+                    const containerAspect = 16 / 9; // Rasio aspek kontainer yang ditetapkan di HTML
+                    const imgAspect = img.width / img.height;
+                    
+                    let drawWidth, drawHeight;
+                    
+                    // Jika gambar lebih lebar dari rasio kontainer (misal: lanskap lebar), gunakan lebar penuh
+                    if (imgAspect > containerAspect) {
+                        drawWidth = img.width;
+                        drawHeight = img.height;
+                    } else {
+                        // Jika gambar lebih tinggi (misal: potret), gunakan tinggi penuh
+                        drawWidth = img.width;
+                        drawHeight = img.height;
+                    }
+
+                    // Tetapkan dimensi canvas (penting untuk getImageData)
+                    canvas.width = drawWidth;
+                    canvas.height = drawHeight;
+
+                    // Gambar gambar ke canvas
+                    ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
+
+                    // Jalankan analisis
+                    runAnalysis();
+                    
+                    loader.classList.add('hidden');
+                    resultOverlay.style.display = 'block';
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Event Listener untuk input file
+        uploadInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                processImage(file);
+            }
+        });
+        
+        // Event Listener untuk tombol Reset
+        resetButton.addEventListener('click', () => {
+            // Kembali ke mode kamera
+            setupCameraDevices();
+        });
+
+
+        // Mulai aplikasi saat DOM dimuat
+        window.onload = setupCameraDevices;
+    </script>
+</body>
+</html>
